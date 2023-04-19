@@ -39,7 +39,7 @@ async function getWalletBalance(address) {
  * assets and the wallet address
  * @param {object} req The Express request object
  * @param {object} res The Express response object
- * @return {object} - 200 JWT containing 
+ * @return {object} - 200 JWT containing
  * @throws {object} - 404 Invalid Message
  * @throws {object} - 500 Server Error
  */
@@ -47,16 +47,24 @@ async function getWalletBalance(address) {
 router.post('/validate-wallet', verifyWalletBodyParams, async (req, res, next) => {
 	try {
 		const { address, signature, message } = req.body;
+		
+		// add wallet address to DB if it does not already exist
+		const [ wallet, created ] = await db.Wallet.findOrCreate({
+			where: { id: address }
+		});
+
 		const verified = new Message(message).verify(address, signature);
+
 		if (verified) {
 			const wallet = await getWalletBalance(address)
 			const assets = JSON.parse(wallet).data
 				.map((token) => token.asset_longname)
 				.filter((token) => token ? token : false)
-			// TODO: Make a real key, dingus.
+
+				// TODO: Make a real key, dingus.
 			const token = jwt.sign({ address, assets }, 'shh');
 
-			req.logger.log({ level: 'info', message: `Address: ${address} validated` });
+			req.logger.log({ level: 'info', message: `Address: ${address} ${created ? 'created' : 'validated'}` });
 
 			res.status(200).send({ token, address })
 		} else {

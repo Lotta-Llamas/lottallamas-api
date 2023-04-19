@@ -17,6 +17,12 @@ const existingWallet = {
 	signature: 'IFAPT9+R/2bli2xFXerJMCcsk+UpiBLrXwCgKQOtrVwnJ97AIv+zmxnr+szfIjNeUSp/uEyTWpozusJhoK5LjF8=',
 }
 
+const nonExistingWallet = {
+	address: '1FX2EMcKqKQbxPeVSWTdnBwiCp7ijpc9qp',
+	message: 'The man who stole the world',
+	signature: 'ILcABXX9nvihEeOfKH+J7Ga89rGQr/p2ffaD1YiztD9sC4ofkpY/aE5TLcHOP3SpEn1k+cUMchk+Uy3bkE6iieI=',
+}
+
 const { address, message, signature, nickName } = wallet;
 const { existingAddress, existingMessage, existingSignature } = existingWallet;
 
@@ -61,6 +67,24 @@ describe('POST - Login (Address, Message, Signature)', () => {
 			.then((response) => {
 				expect(response.statusCode).toBe(404);
 				expect(JSON.parse(response.text).error).toBe('Invalid Message');
+			})
+	});
+
+	test('creates wallet record if one doesnt exist', async () => {
+		const walletRecord = await db.Wallet.findByPk(nonExistingWallet.address)
+		expect(walletRecord).toBe(null);
+		await request(app)
+			.post('/api/validate-wallet')
+			.set('Accept', 'application/json')
+			.send({
+				address: nonExistingWallet.address,
+				signature: nonExistingWallet.signature,
+				message: nonExistingWallet.message
+			})
+			.then(async () => {
+				const updatedRecord = await db.Wallet.findByPk(nonExistingWallet.address)
+				expect(updatedRecord.id).toBe(nonExistingWallet.address);
+				await db.Wallet.destroy({ where: { id: nonExistingWallet.address }})
 			})
 	});
 
